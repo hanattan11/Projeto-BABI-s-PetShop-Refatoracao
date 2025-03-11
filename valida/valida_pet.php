@@ -5,49 +5,43 @@ session_start();
 include_once '../adm/config/conexao.php';
 
 $dados = filter_input_array(INPUT_POST, FILTER_DEFAULT);
-var_dump($dados);
 
-if(!empty($dados['bt_cadpet'])){
-    //echo '<br>Deu certo!';
-    
-//    $cripto_senha = password_hash($dados_cadastro['senha'],PASSWORD_DEFAULT);
-    
-    $query_cadastro = "INSERT INTO pets(nome, especie_id, porte_id, created) "
-            . "VALUES ('".$dados['pet_nome']."', '".$dados['especie_id']."', '".$dados['porte_id']."', NOW())";
+if (!empty($dados['bt_cadpet'])) {
+    // Valida os dados antes de processar
+    $pet_nome = filter_var($dados['pet_nome'], FILTER_SANITIZE_STRING);
+    $especie_id = filter_var($dados['especie_id'], FILTER_SANITIZE_NUMBER_INT);
+    $porte_id = filter_var($dados['porte_id'], FILTER_SANITIZE_NUMBER_INT);
 
-    // $query_serv = "INSERT INTO servicos_prestados(servico_id, created) "
-    // . "VALUES ('".$dados['servico_id']."', NOW())";
-    
-    $result_usuario = $conn->prepare($query_cadastro);
-    $result_usuario->execute();
-
-    // $result_servico = $conn->prepare($query_serv);
-    // $result_servico->execute();
-    
-    if(($result_usuario) AND ($result_usuario->rowCount() != 0)){ 
-        $row_usuario = $result_usuario->fetch(PDO::FETCH_ASSOC);
-        $_SESSION['msg'] = "<h2><p style='color:green'>Pet cadastrado com sucesso!</p></h2>";
-        header("Location:../pags/clientelogged.php");
-        
-    } else {
-        $_SESSION['msg'] = "<h2><p style='color:red'>Não foi possível inserir o pet!</p></h2>";
-        header("Location:../pags/formlogged.php");
+    if (empty($pet_nome) || empty($especie_id) || empty($porte_id)) {
+        $_SESSION['msg'] = "<h2><p style='color:red'>Por favor, preencha todos os campos!</p></h2>";
+        header("Location: ../pags/formlogged.php");
+        exit;
     }
-    
-    // if(($result_servico) AND ($result_servico->rowCount() != 0)){ 
-    //     $row_serv = $result_servico->fetch(PDO::FETCH_ASSOC);
-    //     $_SESSION['msg'] = "<h2><p style='color:green'>Pedido enviado com sucesso!</p></h2>";
-    //     header("Location:../pags/clientelogged.php");
-        
-    // } else {
-    //     $_SESSION['msg'] = "<h2><p style='color:red'>Não foi possível fazer o pedido, tente novamente mais tarde :(</p></h2>";
-    //     header("Location:../pags/formlogged.php");
-    // }    
-    
+    $query_cadastro = "INSERT INTO pets (nome, especie_id, porte_id, created) 
+                       VALUES (:nome, :especie_id, :porte_id, NOW())";
+
+    try {
+        $result_usuario = $conn->prepare($query_cadastro);
+        $result_usuario->bindParam(':nome', $pet_nome);
+        $result_usuario->bindParam(':especie_id', $especie_id);
+        $result_usuario->bindParam(':porte_id', $porte_id);
+
+        // Executa a query
+        $result_usuario->execute();
+
+        if ($result_usuario->rowCount() > 0) {
+            $_SESSION['msg'] = "<h2><p style='color:green'>Pet cadastrado com sucesso!</p></h2>";
+            header("Location: ../pags/clientelogged.php");
+        } else {
+            $_SESSION['msg'] = "<h2><p style='color:red'>Não foi possível inserir o pet!</p></h2>";
+            header("Location: ../pags/formlogged.php");
+        }
+    } catch (PDOException $e) {
+        // Em caso de erro com a query, exibe mensagem
+        $_SESSION['msg'] = "<h2><p style='color:red'>Erro ao cadastrar pet: " . $e->getMessage() . "</p></h2>";
+        header("Location: ../pags/formlogged.php");
+    }
 } else {
     $_SESSION['msg'] = "<h2><p style='color:red'>Não foi possível cadastrar seu pet!</p></h2>";
-    header("Location:../pags\/formlogged.php");
-
+    header("Location: ../pags/formlogged.php");
 }
-
-

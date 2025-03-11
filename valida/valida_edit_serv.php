@@ -1,7 +1,6 @@
 <?php
 
 session_start();
-
 include_once '../adm/config/conexao.php';
 
 if (isset($_SESSION['msg'])) {
@@ -9,50 +8,49 @@ if (isset($_SESSION['msg'])) {
     unset($_SESSION['msg']);
 }
 
-$edita_cad_serv = filter_input(INPUT_POST, 'editaServico', FILTER_SANITIZE_STRING);
+$id_serv = filter_input(INPUT_POST, 'id', FILTER_SANITIZE_NUMBER_INT);
+$nome = filter_input(INPUT_POST, 'tipo_servico', FILTER_SANITIZE_STRING);
+$descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_STRING);
+$imagem = $_FILES['imagens']['name'] ?? null;
 
-if (!empty($edita_cad_serv)) {
-    //recebe dados do formulario
-    $nome = filter_input(INPUT_POST, 'tipo_servico', FILTER_SANITIZE_STRING);
-    $descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_STRING);
-    $id_serv = filter_input(INPUT_POST,'id',FILTER_SANITIZE_NUMBER_INT);
-    $imagem = $_FILES['imagens']['name'];
+if (!empty($id_serv)) {
+
+    $query_edita_servicos = "UPDATE servicos 
+        SET tipo_servico = :tipo_servico, 
+            descricao = :descricao, 
+            imagem = :imagem, 
+            modified = NOW() 
+        WHERE id = :id_serv";
+
+    $stmt = $conn->prepare($query_edita_servicos);
     
-    echo $imagem;
-    
-    //insere dados no bd
-    $query_edita_servicos = "UPDATE servicos SET tipo_servico='$tipo_servico', descricao='$descricao', imagem='$imagem', modified=NOW() WHERE id='$id_serv'";
-    
-    $result_edita_serv = $conn->prepare($query_edita_servicos);
-    $result_edita_serv->execute();
+    $stmt->bindParam(':tipo_servico', $nome);
+    $stmt->bindParam(':descricao', $descricao);
+    $stmt->bindParam(':imagem', $imagem);
+    $stmt->bindParam(':id_serv', $id_serv);
 
-    //verifica se os dados foram inseridos
-    if (($result_edita_serv) AND ($result_edita_serv->rowCount() != 0)) {
-        $row_edita_servico = $result_edita_serv->fetch(PDO::FETCH_ASSOC);
-        $_SESSION['msg'] = "<p style= 'color:green' >Serviço atualizado!</p>";
-        header("Location:..\pags\admin.php");
+    if ($stmt->execute() && $stmt->rowCount() > 0) {
+        $_SESSION['msg'] = "<p style='color:green'>Serviço atualizado!</p>";
 
-        //recuperar o último insert
-        //$last_insert = $conn->lastInsertId();
+        if (!empty($imagem)) {
+            $pasta = "../imagem/" . $id_serv . "/";
 
-        //pasta onde a imagem será salva
-        $pasta = "../imagem/" . $id_serv . '/';
+            if (!is_dir($pasta)) {
+                mkdir($pasta, 0777, true);
+            }
 
-        // criar a pasta dentro da pasta de imagens         
-        mkdir('../imagem/' . $id_serv . '/');
-
-        if (move_uploaded_file($_FILES['imagens']['tmp_name'], $pasta . $imagem)) {
-            $_SESSION['msg'] = "<p style= 'color:yellow' >Imagem alterada!</p>";
-            header("Location:..\pags\admin.php");
-        } else {
-            $_SESSION['msg'] = "<p style= 'color:white' >Imagem não alterada!</p>";
-            header("Location:..\pags\admin.php");
+            if (move_uploaded_file($_FILES['imagens']['tmp_name'], $pasta . $imagem)) {
+                $_SESSION['msg'] .= "<p style='color:yellow'>Imagem alterada!</p>";
+            } else {
+                $_SESSION['msg'] .= "<p style='color:white'>Erro ao alterar imagem!</p>";
+            }
         }
     } else {
-        $_SESSION['msg'] = "<p style= 'color:red' >Erro ao salvar os dados!</p>";
-        header("Location:..\pags\admin.php");
+        $_SESSION['msg'] = "<p style='color:red'>Erro ao atualizar o serviço ou nenhum dado foi alterado.</p>";
     }
 } else {
-    $_SESSION['msg'] = "<p style= 'color:red' >Erro ao salvar os dados!</p>";
-   //header("Location:..\pags\admin.php");
+    $_SESSION['msg'] = "<p style='color:red'>ID do serviço inválido.</p>";
 }
+
+header("Location: ../pags/admin.php");
+exit;

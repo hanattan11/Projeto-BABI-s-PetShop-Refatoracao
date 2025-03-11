@@ -1,42 +1,40 @@
-// versão bia
 <?php
 
 session_start();
-
 include_once '../adm/config/conexao.php';
 
-if(isset($_SESSION['msg'])) {
+// Exibir mensagem de sessão (caso exista)
+if (isset($_SESSION['msg'])) {
     echo $_SESSION['msg'];
-    unset ($_SESSION['msg']);
+    unset($_SESSION['msg']);
 }
 
+$id_pet = filter_input(INPUT_POST, 'id_pet', FILTER_SANITIZE_NUMBER_INT);
+$nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
+$especie_id = filter_input(INPUT_POST, 'especie_id', FILTER_SANITIZE_NUMBER_INT);
+$porte_id = filter_input(INPUT_POST, 'porte_id', FILTER_SANITIZE_NUMBER_INT);
+$modified = date("Y-m-d H:i:s"); // Atualiza o campo de modificação
 
-$edita_cad_pet = filter_input(INPUT_POST, 'editaPet', FILTER_SANITIZE_STRING);
-var_dump($edita_cad_pet);
+if (!empty($id_pet)) {
 
+    $query_edita_pets = "UPDATE pets SET nome = :nome, especie_id = :especie_id, porte_id = :porte_id, modified = :modified WHERE id = :id_pet LIMIT 1";
 
-if(!empty($edita_cad_pet)){
-    //echo '<br>Deu certo!';
+    $stmt = $conn->prepare($query_edita_pets);
     
-    $query_edita_pets = "UPDATE pets SET nome='$nome', especie_id='$especie_id', porte_id='$porte_id',
-    created='$created', modified='$modified' WHERE id='$id_pet' LIMIT 1"; // busca id atráves do valor que consta no banco
-    
-    $result_edita_pet = $conn->prepare($query_edita_pets);
-    $result_edita_pet->execute();
-    
-    if(($result_edita_pet) AND ($result_edita_pet->rowCount() != 0)){ 
-        $row_edita_pet = $result_edita_pet->fetch(PDO::FETCH_ASSOC);
+    $stmt->bindParam(':nome', $nome);
+    $stmt->bindParam(':especie_id', $especie_id);
+    $stmt->bindParam(':porte_id', $porte_id);
+    $stmt->bindParam(':modified', $modified);
+    $stmt->bindParam(':id_pet', $id_pet);
+
+    if ($stmt->execute() && $stmt->rowCount() > 0) {
         $_SESSION['msg'] = "<p style='color:green'>Pet atualizado com sucesso!</p>";
-        header("Location:..\pags\admin.php");
-        
     } else {
-        $_SESSION['msg'] = "<p style='color:red'>Não foi possível atualizar pet!</p>";
-        header("Location:..\pags\admin.php");
-    }    
-    
+        $_SESSION['msg'] = "<p style='color:red'>Erro ao atualizar o pet ou nenhum dado foi alterado.</p>";
+    }
 } else {
-    $_SESSION['msg'] = "<p style='color:red'>Não foi possível atualizar pet!</p>";
-    header("Location:..\pags\admin.php");
+    $_SESSION['msg'] = "<p style='color:red'>ID do pet inválido.</p>";
 }
 
-?>
+header("Location: ../pags/admin.php");
+exit;
